@@ -1,7 +1,9 @@
+import { withVerifierCleanup } from "../../../scripts/lib/verifier-cleanup.mjs";
 import { expect, it } from "vitest";
 import { JebProvider } from "../../../src/jeb/JebProvider.js";
 import { createStreamableHttpJebMcpConnection } from "../../../src/jeb/JebMcpConnection.js";
 import { AnalysisTimeoutError } from "../../../src/domain/analysisErrorCore.js";
+import { projectAnalysisError } from "../../../src/domain/analysisErrorProjection.js";
 import {
   startJebMcpFixture,
   jebPrimaryResponses,
@@ -39,7 +41,7 @@ it.each([
           requestTimeoutMs: 100,
         }),
     });
-    try {
+    await withVerifierCleanup(async () => {
       const result = await provider.execute(
         operation === "inspect_jeb_client"
           ? { operation, input: {} }
@@ -48,12 +50,27 @@ it.each([
       if (result.ok) throw new Error("Timed-out MCP request passed");
       expect(result.error).toBeInstanceOf(AnalysisTimeoutError);
       expect(result.error).toMatchObject({ operation, timeoutMs: 100 });
+      const projected = projectAnalysisError(result.error);
+      expect(projected.message).toContain(
+        stage === "catalog" ? "catalog discovery" : "tools/call",
+      );
+      expect(projected.message).toContain("100 ms");
+      expect(projected.remediation.action).toContain("REA_JEB_MCP_TIMEOUT_MS");
+      expect(projected.remediation.action).toContain("2147483647");
+      expect(projected.remediation.action).toContain("60000");
+      expect(projected.remediation.action).toContain("restart");
       expect(result.error.cause).toBeDefined();
       expect(result.error.cleanupIncomplete).toBe(false);
-    } finally {
-      release();
-      await provider.close();
-      await fixture.close();
-    }
+    }, [
+      async () => {
+        release();
+      },
+      async () => {
+        await provider.close();
+      },
+      async () => {
+        await fixture.close();
+      },
+    ]);
   },
 );

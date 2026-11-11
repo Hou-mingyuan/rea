@@ -64,9 +64,11 @@ export class KunaStringQueries {
       address === undefined
     )
       return err(
-        new AnalysisInputError(operation, {
-          userMessage: "Use an explicit hexadecimal u64 string address.",
-        }),
+        new AnalysisInputError(
+          operation,
+          { userMessage: "Use an explicit hexadecimal u64 string address." },
+          [{ path: ["address"], reason: "invalid_format" }],
+        ),
       );
     const inventory = await this.#load(installation, operation, signal);
     if (!inventory.ok)
@@ -121,13 +123,8 @@ export class KunaStringQueries {
     if (this.#inventory !== undefined) return ok(this.#inventory);
     if (this.#failure !== undefined) return err(this.#failure);
     if (this.#pending?.signal.aborted === true) {
-      const stopped = await this.work.wait(this.#pending, signal, operation);
-      if (!stopped.ok && !(stopped.error instanceof AnalysisCancelledError))
-        return stopped;
-      if (signal?.aborted === true)
-        return err(
-          new AnalysisCancelledError(operation, { cause: signal?.reason }),
-        );
+      const stopped = await this.work.retire(this.#pending, signal, operation);
+      if (!stopped.ok) return stopped;
       return this.#load(installation, operation, signal);
     }
     if (this.#pending === undefined) {
