@@ -174,7 +174,7 @@ it("accepts more work after application expansion exceeds memory and retains eve
     await client.close();
     await transport.close();
   }
-}, 90000);
+});
 
 const repeatedSourceCount = 1500;
 const repeatedSourceText = "export const observed = 7;\n";
@@ -250,13 +250,15 @@ it("returns a directly usable partial analysis reference for an oversized timeou
       limit: {
         setting: "javascript.analysis_timeout_ms",
         effective_value: 1,
+        source: "request",
         parameter: "analysis_timeout_ms",
         unit: "ms",
         minimum: 1,
         maximum: 2_147_483_647,
         applies_at: "next_operation",
         agent_editable: true,
-        rea_restart_required: false,
+        update_mode: "parameter",
+        pending_restart: false,
       },
     });
     expect(error.recovery).toEqual({
@@ -304,7 +306,7 @@ it("returns a directly usable partial analysis reference for an oversized timeou
     await client.close();
     await transport.close();
   }
-}, 90000);
+});
 
 const verifyRecovery = async (
   client: Client,

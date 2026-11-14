@@ -57,6 +57,61 @@ const parseMetadataSummary = (value: unknown) =>
   );
 
 cliTest(
+  "returns a v108 header inventory in CLI and MCP refusal evidence",
+  async ({ cli }) => {
+    const root = await createTestTempDirectory("rea-il2cpp-v108-cli-");
+    const path = join(root, "global-metadata.dat");
+    const strings = Buffer.from("Player\0");
+    const bytes = Buffer.alloc(500 + strings.length);
+    bytes.writeUInt32LE(0xfab11baf, 0);
+    bytes.writeInt32LE(108, 4);
+    for (let index = 0; index < 41; index++) {
+      bytes.writeInt32LE(
+        500 + (index > 2 ? strings.length : 0),
+        8 + index * 12,
+      );
+      bytes.writeInt32LE(index === 2 ? strings.length : 0, 12 + index * 12);
+      bytes.writeInt32LE(index === 2 ? strings.length : 0, 16 + index * 12);
+    }
+    strings.copy(bytes, 500);
+    await writeFile(path, bytes);
+    const result = await runFileCli(cli, {
+      arguments: ["inspect-il2cpp-metadata", path, "--json"],
+    });
+    expect(result.exitCode).toBe(1);
+    expect(result.json).toMatchObject({
+      code: "unsupported_target",
+      details: {
+        partial_observation: {
+          normalized_result: {
+            artifact: {
+              path,
+              sha256: createHash("sha256").update(bytes).digest("hex"),
+            },
+            version_108_partial_inventory: {
+              coverage: "header-and-bounded-string-sample-only",
+              strings: { sample: [{ value: "Player" }] },
+            },
+          },
+        },
+      },
+    });
+    const { client, call } = await connectLocalToolsMcp();
+    const response = await call("inspect_il2cpp_metadata", { path });
+    expect(parseMcpToolError(response).error).toMatchObject({
+      code: "unsupported_target",
+      details: {
+        partial_observation: {
+          kind: "retained-evidence",
+          evidence_id: expect.any(String),
+        },
+      },
+    });
+    await client.ping();
+  },
+);
+
+cliTest(
   "rejects out-of-range module image references through CLI and MCP",
   async ({ cli }) => {
     const root = await createTestTempDirectory("rea-il2cpp-module-image-");
@@ -120,7 +175,6 @@ cliTest(
       }
     }
   },
-  30000,
 );
 
 cliTest(
@@ -182,7 +236,6 @@ cliTest(
       }
     }
   },
-  30000,
 );
 
 cliTest(
@@ -256,7 +309,6 @@ cliTest(
       expect(Buffer.compare(await readFile(path), fixture.bytes)).toBe(0);
     }
   },
-  30000,
 );
 
 cliTest(
@@ -375,7 +427,6 @@ cliTest(
     }
     await client.ping();
   },
-  30000,
 );
 
 cliTest(
@@ -431,7 +482,6 @@ cliTest(
     }
     await client.ping();
   },
-  30000,
 );
 
 cliTest(
@@ -506,7 +556,6 @@ cliTest(
     }
     await client.ping();
   },
-  30000,
 );
 
 const metadataPageReader =
@@ -694,7 +743,7 @@ it("queries compact retained metadata through the real SDK with exact row identi
   });
   expect(parseMcpToolError(invalid).error.code).toBe("invalid_request");
   await client.ping();
-}, 30000);
+});
 
 it("imports historical metadata Evidence with unavailable member collections without inventing empty results", async () => {
   const root = await createTestTempDirectory("rea-il2cpp-history-"),
@@ -771,7 +820,7 @@ it("imports historical metadata Evidence with unavailable member collections wit
     view: { kind: "il2cpp-metadata", collection: "parameters" },
   });
   expect(parseMcpToolError(unavailable).error.code).toBe("invalid_request");
-}, 30000);
+});
 
 cliTest(
   "exports complete metadata Evidence for compact CLI delivery and portable selected reads",
@@ -850,7 +899,6 @@ cliTest(
       parent_evidence_id: evidence.evidence_id,
     });
   },
-  30000,
 );
 
 cliTest.skipIf(process.platform === "win32")(
@@ -894,7 +942,6 @@ cliTest.skipIf(process.platform === "win32")(
     expect(read.exitCode, read.stderr).toBe(0);
     expect(read.stdout).toContain(saved.value.records[0]?.evidence_id);
   },
-  30000,
 );
 
 cliTest(
@@ -986,7 +1033,6 @@ cliTest(
     );
     await client.ping();
   },
-  30000,
 );
 
 cliTest(
@@ -1032,7 +1078,6 @@ cliTest(
     ).toEqual(report.method_addresses);
     await client.ping();
   },
-  30000,
 );
 
 cliTest(
@@ -1101,7 +1146,6 @@ cliTest(
     }
     await client.ping();
   },
-  30000,
 );
 
 cliTest(
@@ -1162,7 +1206,6 @@ cliTest(
     }
     await client.ping();
   },
-  30000,
 );
 
 cliTest(
@@ -1245,7 +1288,6 @@ cliTest(
     }
     await client.ping();
   },
-  30000,
 );
 
 cliTest(
@@ -1283,7 +1325,6 @@ cliTest(
       ),
     ).toBe(true);
   },
-  30000,
 );
 
 cliTest(
@@ -1597,5 +1638,4 @@ cliTest(
       ).toEqual(entry.methods);
     }
   },
-  60000,
 );
