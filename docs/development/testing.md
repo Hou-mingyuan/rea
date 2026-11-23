@@ -256,8 +256,10 @@ changing a callback solely to satisfy its declared `void` return type.
 `npm run knip:production` writes advisory candidates to
 `.cache/static-checks/production-reachability.json`; execution/report errors fail.
 Ordinary Knip remains. `check`, `check:pr`, and `check:ci:deep` run reachability
-then typed lint sequentially after cached work. Typed lint builds the project
-type graph and stays separate from fast feedback. Its default Go settings are
+then full typed lint sequentially after cached work. Fast PR Static checks
+report typed diagnostics for changed JavaScript and TypeScript files. They use
+full typed lint if the changed file list exceeds the CI output budget. Typed
+lint builds the project type graph in both modes. Its default Go settings are
 `GOMAXPROCS=1` and `GOMEMLIMIT=1024MiB`; caller-selected settings take precedence.
 One Go worker reuses checker caches across the file queue without changing the
 file inventory or TypeScript project scope. The Go memory target is soft and
@@ -788,11 +790,16 @@ ownership or finalization changes; a single malformed fixture cannot establish
 the whole contract.
 
 When consolidating interpretation across consumers, use the same authored
-input and an independently specified expected fact at the boundary where
-each consumer previously made its own decision. Allow differences in
-recovery or display when those belong to the consumer. For generated
-installers and verifiers, exercise the emitted artifact in its supported
-runtime so the test covers the code that actually receives the input.
+input at the boundary where each consumer previously made its own decision.
+Choose a case that makes competing interpretations disagree and a control
+that should succeed. Assert the expected fact and its provenance independently
+of the implementation. Allow differences in recovery or display when those
+belong to the consumer. For generated installers and verifiers, exercise the
+emitted artifact in its supported runtime.
+
+When the operation changes state, verify the published or retained result as
+well as preflight. When ownership includes cleanup, check who retains
+responsibility after a failed attempt and what happens on retry.
 
 When detection and detailed inspection share a reader, compare a valid
 input, a recognizable malformed input, and a valid input whose examined
